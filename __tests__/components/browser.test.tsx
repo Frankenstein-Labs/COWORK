@@ -120,10 +120,14 @@ describe("Browser", () => {
 
     expect(screen.getByText("BROWSER$CONNECT_TITLE")).toBeInTheDocument();
     expect(screen.getByLabelText("BROWSER$RUNTIME_URL")).toBeInTheDocument();
+    expect(screen.getByLabelText("BROWSER$RUNTIME_URL")).toHaveValue(
+      "https://chrome-production-a622383e.up.railway.app",
+    );
     expect(screen.getByLabelText("BROWSER$ACCESS_TOKEN")).toHaveAttribute(
       "type",
       "password",
     );
+    expect(screen.getByLabelText("BROWSER$ACCESS_TOKEN")).toHaveValue("");
     expect(
       screen.queryByAltText("BROWSER$SCREENSHOT_ALT"),
     ).not.toBeInTheDocument();

@@ -32,6 +32,8 @@ const BROWSER_VIEWPORT_WIDTH = 1365;
 const BROWSER_VIEWPORT_HEIGHT = 900;
 const BROWSER_POLL_INTERVAL_MS = 1200;
 const STANDALONE_SESSION_STORAGE_KEY = "cortex-browser-standalone-session";
+const DEFAULT_BROWSER_RUNTIME_URL =
+  "https://chrome-production-a622383e.up.railway.app";
 
 function getSessionId(conversationId: string | null | undefined): string {
   if (conversationId) return conversationId;
@@ -95,7 +97,9 @@ export function BrowserPanel() {
   const [config, setConfig] = useState<BrowserRuntimeConfig>(() =>
     readBrowserRuntimeConfig(),
   );
-  const [runtimeUrlInput, setRuntimeUrlInput] = useState(config.baseUrl);
+  const [runtimeUrlInput, setRuntimeUrlInput] = useState(
+    config.baseUrl || DEFAULT_BROWSER_RUNTIME_URL,
+  );
   const [tokenInput, setTokenInput] = useState(config.accessToken);
   const [state, setState] = useState<BrowserRuntimeState | null>(null);
   const [urlInput, setUrlInput] = useState("");
