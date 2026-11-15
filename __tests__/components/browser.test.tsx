@@ -11,6 +11,19 @@ const runtimeMocks = vi.hoisted(() => ({
   postBrowserRuntimeAction: vi.fn(),
   selectBrowserRuntimeTab: vi.fn(),
   closeBrowserRuntimeTab: vi.fn(),
+  activeBackend: { kind: "local" } as { kind: "local" | "cloud" },
+  conversationQuery: {
+    data: null as { tags?: Record<string, string> } | null,
+    isFetched: true,
+  },
+}));
+
+vi.mock("#/contexts/active-backend-context", () => ({
+  useActiveBackend: () => ({ backend: runtimeMocks.activeBackend }),
+}));
+
+vi.mock("#/hooks/query/use-user-conversation", () => ({
+  useUserConversation: () => runtimeMocks.conversationQuery,
 }));
 
 vi.mock("#/hooks/use-conversation-id", () => ({
@@ -46,6 +59,8 @@ let currentState = blankState;
 
 beforeEach(() => {
   currentState = blankState;
+  runtimeMocks.activeBackend = { kind: "local" };
+  runtimeMocks.conversationQuery = { data: null, isFetched: true };
   runtimeMocks.readBrowserRuntimeConfig.mockReturnValue({
     baseUrl: "",
     accessToken: "",
@@ -156,5 +171,31 @@ describe("Browser", () => {
       );
     });
     await waitFor(() => expect(address).toHaveValue("https://example.com/"));
+  });
+
+  it("uses the Cloud conversation tag as the shared MCP session id", async () => {
+    runtimeMocks.activeBackend = { kind: "cloud" };
+    runtimeMocks.conversationQuery = {
+      data: {
+        tags: { cortex_browser_session_id: "cloud-browser-shared-test" },
+      },
+      isFetched: true,
+    };
+    runtimeMocks.readBrowserRuntimeConfig.mockReturnValue({
+      baseUrl: "https://browser-service.example",
+      accessToken: "a-secure-test-token-with-more-than-32-characters",
+    });
+
+    render(<BrowserPanel />);
+
+    await waitFor(() => {
+      expect(runtimeMocks.getBrowserRuntimeState).toHaveBeenCalledWith(
+        {
+          baseUrl: "https://browser-service.example",
+          accessToken: "a-secure-test-token-with-more-than-32-characters",
+        },
+        "cloud-browser-shared-test",
+      );
+    });
   });
 });

@@ -8,8 +8,11 @@ import {
   type MouseEvent,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { useActiveBackend } from "#/contexts/active-backend-context";
+import { useUserConversation } from "#/hooks/query/use-user-conversation";
 import { useOptionalConversationId } from "#/hooks/use-conversation-id";
 import { I18nKey } from "#/i18n/declaration";
+import { CONVERSATION_LAUNCH_PREFIX } from "#/stores/conversation-launch-store";
 import { randomUUID } from "#/utils/random-uuid";
 import {
   clearBrowserRuntimeToken,
@@ -63,9 +66,31 @@ function normalizePageUrl(value: string): string | null {
 export function BrowserPanel() {
   const { t } = useTranslation("openhands");
   const { conversationId } = useOptionalConversationId();
+  const activeBackend = useActiveBackend();
+  const isCloudBackend = activeBackend.backend.kind === "cloud";
+  const isPendingCloudConversation = Boolean(
+    isCloudBackend &&
+    conversationId &&
+    (conversationId.startsWith("task-") ||
+      conversationId.startsWith(CONVERSATION_LAUNCH_PREFIX)),
+  );
+  const conversationQuery = useUserConversation(
+    isCloudBackend && !isPendingCloudConversation ? conversationId : null,
+  );
+  const browserSessionId =
+    conversationQuery.data?.tags?.cortex_browser_session_id;
+  const isBrowserSessionReady =
+    !isPendingCloudConversation &&
+    (!isCloudBackend ||
+      !conversationId ||
+      Boolean(browserSessionId) ||
+      conversationQuery.isFetched);
   const sessionId = useMemo(
-    () => getSessionId(conversationId),
-    [conversationId],
+    () =>
+      getSessionId(
+        isPendingCloudConversation ? null : browserSessionId || conversationId,
+      ),
+    [browserSessionId, conversationId, isPendingCloudConversation],
   );
   const [config, setConfig] = useState<BrowserRuntimeConfig>(() =>
     readBrowserRuntimeConfig(),
@@ -111,6 +136,7 @@ export function BrowserPanel() {
 
   const connect = useCallback(
     async (candidate: BrowserRuntimeConfig) => {
+      if (!isBrowserSessionReady) return;
       setIsBusy(true);
       setError("");
       try {
@@ -132,11 +158,12 @@ export function BrowserPanel() {
         setIsBusy(false);
       }
     },
-    [refresh, t],
+    [isBrowserSessionReady, refresh, t],
   );
 
   useEffect(() => {
-    if (!config.baseUrl || !config.accessToken) return;
+    if (!isBrowserSessionReady || !config.baseUrl || !config.accessToken)
+      return;
     let cancelled = false;
     void refresh(config)
       .then(() => {
@@ -151,10 +178,10 @@ export function BrowserPanel() {
     return () => {
       cancelled = true;
     };
-  }, [config, refresh, t]);
+  }, [config, isBrowserSessionReady, refresh, t]);
 
   useEffect(() => {
-    if (!isConnected) return;
+    if (!isConnected || !isBrowserSessionReady) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const poll = async () => {
@@ -182,7 +209,14 @@ export function BrowserPanel() {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [config, isConnected, sessionId, t, updateScreenshot]);
+  }, [
+    config,
+    isBrowserSessionReady,
+    isConnected,
+    sessionId,
+    t,
+    updateScreenshot,
+  ]);
 
   useEffect(
     () => () => {
@@ -205,7 +239,7 @@ export function BrowserPanel() {
         | "press",
       payload: Record<string, string | number> = {},
     ) => {
-      if (!isConnected) return;
+      if (!isConnected || !isBrowserSessionReady) return;
       setIsBusy(true);
       setError("");
       try {
@@ -223,7 +257,7 @@ export function BrowserPanel() {
         setIsBusy(false);
       }
     },
-    [config, isConnected, refresh, sessionId, t],
+    [config, isBrowserSessionReady, isConnected, refresh, sessionId, t],
   );
 
   const navigate = useCallback(() => {
@@ -237,7 +271,7 @@ export function BrowserPanel() {
   }, [runAction, t, urlInput]);
 
   const newTab = useCallback(async () => {
-    if (!isConnected) return;
+    if (!isConnected || !isBrowserSessionReady) return;
     setIsBusy(true);
     try {
       const result = await postBrowserRuntimeAction<
@@ -250,10 +284,11 @@ export function BrowserPanel() {
     } finally {
       setIsBusy(false);
     }
-  }, [config, isConnected, refresh, sessionId, t]);
+  }, [config, isBrowserSessionReady, isConnected, refresh, sessionId, t]);
 
   const selectTab = useCallback(
     async (tabId: string) => {
+      if (!isBrowserSessionReady) return;
       setIsBusy(true);
       try {
         setState(await selectBrowserRuntimeTab(config, sessionId, tabId));
@@ -264,11 +299,12 @@ export function BrowserPanel() {
         setIsBusy(false);
       }
     },
-    [config, refresh, sessionId, t],
+    [config, isBrowserSessionReady, refresh, sessionId, t],
   );
 
   const closeTab = useCallback(
     async (tabId: string) => {
+      if (!isBrowserSessionReady) return;
       setIsBusy(true);
       try {
         setState(await closeBrowserRuntimeTab(config, sessionId, tabId));
@@ -279,7 +315,7 @@ export function BrowserPanel() {
         setIsBusy(false);
       }
     },
-    [config, refresh, sessionId, t],
+    [config, isBrowserSessionReady, refresh, sessionId, t],
   );
 
   const handleRemoteClick = useCallback(

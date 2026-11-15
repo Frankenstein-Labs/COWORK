@@ -69,11 +69,12 @@ describe("conversation tag flags", () => {
     ).toEqual({ pinned: "true", archived: null });
   });
 
-  it("keeps pin/archive flags out of the display tag chips", () => {
+  it("keeps machine routing metadata out of the display tag chips", () => {
     expect(
       getDisplayConversationTags({
         pinned: "true",
         archived: "true",
+        cortex_browser_session_id: "cloud-browser-private-routing-id",
         origin: "slack",
       }),
     ).toEqual([["origin", "slack"]]);

@@ -632,8 +632,11 @@ export const AUTOMATION_TAG_KEYS: readonly string[] = [
  *   routing for resuming server-backed automation setup drafts (the last one
  *   links a resumed conversation to the automation materialized from its draft)
  * - ``automationeditid`` → the saved automation this setup page is editing
+ * - ``cortex_browser_session_id`` → internal routing between the Browser tab
+ *   and the conversation's MCP tool calls
  */
 export const RESERVED_CONVERSATION_TAG_KEYS: ReadonlySet<string> = new Set([
+  "cortex_browser_session_id",
   ACP_SERVER_TAG_KEY,
   CLIENT_SOURCE_TAG_KEY,
   AUTOMATION_TRIGGER_TAG_KEY,
@@ -1151,17 +1154,22 @@ export function buildCustomSecrets(
   return secrets;
 }
 
+export function buildBrowserSessionSystemSuffix(sessionId: string): string {
+  return [
+    "## Shared browser session",
+    `The current browser session_id is ${sessionId}.`,
+    "If browser_* MCP tools are available, use this exact session_id to operate the Chromium session shown in the Browser tab. The browser is a separate remote service, not a local browser process.",
+  ].join("\n");
+}
+
 export function buildStartConversationRequest(
   options: StartConversationOptions,
 ): ProfileStartConversationPayload {
   const launchSuffix = [
     buildRuntimeServicesSystemSuffix(options.runtimeServicesInfo),
-    options.agentProfileKind === "openhands" && options.conversationId
-      ? [
-          "## Shared browser session",
-          `The current browser session_id is ${options.conversationId}.`,
-          "If browser_* MCP tools are available, use this exact session_id to operate the Chromium session shown in the Browser tab. The browser is a separate remote service, not a local browser process.",
-        ].join("\n")
+    ["openhands", "acp"].includes(options.agentProfileKind ?? "") &&
+    options.conversationId
+      ? buildBrowserSessionSystemSuffix(options.conversationId)
       : null,
     // A home-page model pick made before the first message is an explicit
     // choice the router shouldn't override on turn 1 — suppress the suffix for
