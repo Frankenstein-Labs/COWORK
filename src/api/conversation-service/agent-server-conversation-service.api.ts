@@ -52,6 +52,7 @@ import {
   REPOSITORY_TAG_KEY,
   SELECTED_BRANCH_TAG_KEY,
   assertSubscriptionAuthReady,
+  buildBrowserSessionSystemSuffix,
   buildRouterAtStartSystemSuffix,
   buildStartConversationRequestWithEncryptedSettings,
   buildStartPlanningConversationRequestWithEncryptedSettings,
@@ -625,6 +626,13 @@ class AgentServerConversationService {
         options.runRouterAtConversationStart ?? false,
         options.hasActiveMetaProfile ?? false,
       );
+      const browserSessionId = `cloud-browser-${randomUUID()}`;
+      const launchSuffix = [
+        buildBrowserSessionSystemSuffix(browserSessionId),
+        routerAtStartSuffix,
+      ]
+        .filter(Boolean)
+        .join("\n\n");
       const request: AppConversationStartRequest = {
         generate_title_on_submit: true,
         initial_message: initialUserMsg
@@ -653,17 +661,20 @@ class AgentServerConversationService {
         sandbox_id: sandboxId ?? null,
         agent_profile_id: agentProfileId ?? null,
         ...(llmProfile ? { llm_profile: llmProfile } : {}),
-        ...(routerAtStartSuffix
+        ...(launchSuffix
           ? {
               agent_launch_additions: {
-                system_message_suffix_append: routerAtStartSuffix,
+                system_message_suffix_append: launchSuffix,
               },
             }
           : {}),
         trigger: "gui",
-        ...(automationSetup
-          ? { tags: buildAutomationSetupModeTags(automationSetupTags) }
-          : {}),
+        tags: {
+          ...(automationSetup
+            ? buildAutomationSetupModeTags(automationSetupTags)
+            : {}),
+          cortex_browser_session_id: browserSessionId,
+        },
         ...(automationSetup && agentProfileKind !== "acp"
           ? {
               client_tools: [

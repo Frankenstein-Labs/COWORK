@@ -84,6 +84,16 @@ describe("AgentServerConversationService cloud branch", () => {
       role: "user",
       content: [{ type: "text", text: "fix the bug" }],
     });
+    const browserSessionId = (requestBody.tags as Record<string, string>)
+      .cortex_browser_session_id;
+    expect(browserSessionId).toMatch(/^cloud-browser-/);
+    expect(
+      (
+        requestBody.agent_launch_additions as {
+          system_message_suffix_append?: string;
+        }
+      ).system_message_suffix_append,
+    ).toContain(`session_id is ${browserSessionId}`);
     // The local-only encrypted-settings keys must NOT be present.
     expect(requestBody).not.toHaveProperty("agent_settings_encrypted");
     expect(requestBody).not.toHaveProperty("conversation_settings_encrypted");
@@ -126,7 +136,7 @@ describe("AgentServerConversationService cloud branch", () => {
     ).toContain("ROUTE_AT_CONVERSATION_START");
   });
 
-  it("createConversation omits agent_launch_additions on the cloud path when the toggle is off", async () => {
+  it("keeps Browser MCP binding on the cloud path when the router toggle is off", async () => {
     fetchMock.mockResolvedValue(
       mockJsonResponse({
         id: "task-125",
@@ -148,10 +158,16 @@ describe("AgentServerConversationService cloud branch", () => {
     const [, init] = getFetchCall(fetchMock);
     const requestBody = getJsonBody(init);
 
-    expect(requestBody).not.toHaveProperty("agent_launch_additions");
+    const suffix = (
+      requestBody.agent_launch_additions as {
+        system_message_suffix_append?: string;
+      }
+    ).system_message_suffix_append;
+    expect(suffix).toContain("Shared browser session");
+    expect(suffix).not.toContain("ROUTE_AT_CONVERSATION_START");
   });
 
-  it("createConversation omits agent_launch_additions on the cloud path when no meta-profile is active", async () => {
+  it("keeps Browser MCP binding when no router meta-profile is active", async () => {
     // The toggle is on, but with no active meta-profile the agent-server
     // does not attach `route_task_to_model`, so the instruction must not be
     // emitted (the router would have nothing to call).
@@ -178,7 +194,13 @@ describe("AgentServerConversationService cloud branch", () => {
     const [, init] = getFetchCall(fetchMock);
     const requestBody = getJsonBody(init);
 
-    expect(requestBody).not.toHaveProperty("agent_launch_additions");
+    const suffix = (
+      requestBody.agent_launch_additions as {
+        system_message_suffix_append?: string;
+      }
+    ).system_message_suffix_append;
+    expect(suffix).toContain("Shared browser session");
+    expect(suffix).not.toContain("ROUTE_AT_CONVERSATION_START");
   });
 
   it("getStartTask polls /api/v1/app-conversations/start-tasks?ids= directly", async () => {

@@ -1,0 +1,25 @@
+services:
+  browser-runtime:
+    build:
+      context: ..
+      dockerfile: browser-runtime/Dockerfile
+    env_file:
+      - .env
+    environment:
+      PORT: "10000"
+      BROWSER_RUNTIME_ALLOWED_ORIGINS: ${BROWSER_RUNTIME_ALLOWED_ORIGINS:-https://cowork-chi-seven.vercel.app}
+    ports:
+      - "127.0.0.1:10000:10000"
+    shm_size: 1gb
+    init: true
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:10000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s

@@ -1331,6 +1331,34 @@ describe("profile launch additions", () => {
     expect(appended).not.toContain("MARKER-GLOBAL-RULES");
   });
 
+  it("provides the shared browser session id to OpenHands and ACP profiles", () => {
+    const conversationId = "conversation-browser-session";
+    const openHandsPayload = buildStartConversationRequest({
+      ...PROFILE,
+      settings: DEFAULT_SETTINGS,
+      agentProfileKind: "openhands",
+      conversationId,
+    });
+    const openHandsSuffix =
+      additionsOf(openHandsPayload)?.system_message_suffix_append;
+
+    expect(openHandsSuffix).toContain(`session_id is ${conversationId}`);
+    expect(openHandsSuffix).toContain("browser_* MCP tools");
+    expect(openHandsSuffix).not.toContain("access token");
+
+    const acpPayload = buildStartConversationRequest({
+      settings: DEFAULT_SETTINGS,
+      agentProfileId: "profile-acp",
+      agentProfileKind: "acp",
+      conversationId,
+    });
+    const acpSuffix =
+      additionsOf(acpPayload)?.system_message_suffix_append ?? "";
+    expect(acpSuffix).toContain(`session_id is ${conversationId}`);
+    expect(acpSuffix).toContain("browser_* MCP tools");
+    expect(acpSuffix).not.toContain("access token");
+  });
+
   it("carries runtime services on an ACP profile launch too", () => {
     const payload = buildStartConversationRequest({
       settings: DEFAULT_SETTINGS,
