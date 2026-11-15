@@ -1156,6 +1156,13 @@ export function buildStartConversationRequest(
 ): ProfileStartConversationPayload {
   const launchSuffix = [
     buildRuntimeServicesSystemSuffix(options.runtimeServicesInfo),
+    options.agentProfileKind === "openhands" && options.conversationId
+      ? [
+          "## Shared browser session",
+          `The current browser session_id is ${options.conversationId}.`,
+          "If browser_* MCP tools are available, use this exact session_id to operate the Chromium session shown in the Browser tab. The browser is a separate remote service, not a local browser process.",
+        ].join("\n")
+      : null,
     // A home-page model pick made before the first message is an explicit
     // choice the router shouldn't override on turn 1 — suppress the suffix for
     // this single launch. The flag is threaded in by the home launch so this
